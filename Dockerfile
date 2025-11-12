@@ -50,7 +50,7 @@ COPY requirements.txt /home/user/requirements.txt
 COPY web/ /home/user/web/
 
 # 升级pip并安装Python依赖
-RUN pip install --upgrade pip && pip install --no-cache-dir -r /home/user/requirements.txt
+RUN python3.12 -m pip install --upgrade pip && python3.12 -m pip install --no-cache-dir -r /home/user/requirements.txt
 
 # 再次放宽权限，确保普通用户可写
 RUN chmod -R 777 /home/user /data && chmod +x /home/user/frp/frp-entry.sh
