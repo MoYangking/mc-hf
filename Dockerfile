@@ -8,14 +8,10 @@ ARG FRP_VERSION=v0.65.0
 
 USER root
 
-# 安装 supervisord + envsubst + python3.12；创建目录并放宽权限（不使用 /etc）
+# 安装 supervisord + envsubst + python3；创建目录并放宽权限（不使用 /etc）
 RUN set -eux; \
     if command -v apt-get >/dev/null 2>&1; then \
-      apt-get update && apt-get install -y --no-install-recommends software-properties-common && \
-      add-apt-repository ppa:deadsnakes/ppa -y && \
-      apt-get update && apt-get install -y --no-install-recommends supervisor gettext-base ca-certificates curl python3.12 python3.12-venv && \
-      curl -sS https://bootstrap.pypa.io/get-pip.py | python3.12 && \
-      update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1 && \
+      apt-get update && apt-get install -y --no-install-recommends supervisor gettext-base ca-certificates curl python3 python3-pip python3-venv && \
       rm -rf /var/lib/apt/lists/*; \
     elif command -v microdnf >/dev/null 2>&1; then \
       microdnf install -y supervisor gettext ca-certificates curl python3 python3-pip && microdnf clean all; \
@@ -50,7 +46,7 @@ COPY requirements.txt /home/user/requirements.txt
 COPY web/ /home/user/web/
 
 # 升级pip并安装Python依赖
-RUN python3.12 -m pip install --upgrade pip && python3.12 -m pip install --no-cache-dir -r /home/user/requirements.txt
+RUN python3 -m pip install --upgrade pip && python3 -m pip install --no-cache-dir -r /home/user/requirements.txt
 
 # 再次放宽权限，确保普通用户可写
 RUN chmod -R 777 /home/user /data && chmod +x /home/user/frp/frp-entry.sh
