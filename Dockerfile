@@ -8,17 +8,17 @@ ARG FRP_VERSION=v0.65.0
 
 USER root
 
-# 安装 supervisord + envsubst；创建目录并放宽权限（不使用 /etc）
+# 安装 supervisord + envsubst + python3；创建目录并放宽权限（不使用 /etc）
 RUN set -eux; \
     if command -v apt-get >/dev/null 2>&1; then \
-      apt-get update && apt-get install -y --no-install-recommends supervisor gettext-base ca-certificates curl && \
+      apt-get update && apt-get install -y --no-install-recommends supervisor gettext-base ca-certificates curl python3 python3-pip && \
       rm -rf /var/lib/apt/lists/*; \
     elif command -v microdnf >/dev/null 2>&1; then \
-      microdnf install -y supervisor gettext ca-certificates curl && microdnf clean all; \
+      microdnf install -y supervisor gettext ca-certificates curl python3 python3-pip && microdnf clean all; \
     else \
       echo "Unsupported base for package install"; exit 1; \
     fi; \
-    mkdir -p /home/user/supervisor /home/user/run /home/user/frp /home/user/logs /data /tmp; \
+    mkdir -p /home/user/supervisor /home/user/run /home/user/frp /home/user/logs /home/user/web /data /tmp; \
     chmod -R 777 /home/user /data /tmp
 
 # 下载并安装 frp 到 /usr/local/bin（运行期以普通用户执行）
@@ -42,6 +42,11 @@ RUN set -eux; \
 COPY supervisord.conf /home/user/supervisor/supervisord.conf
 COPY frpc.toml.template /home/user/frp/frpc.toml.template
 COPY frp-entry.sh /home/user/frp/frp-entry.sh
+COPY requirements.txt /home/user/requirements.txt
+COPY web/ /home/user/web/
+
+# 安装Python依赖
+RUN pip3 install --no-cache-dir -r /home/user/requirements.txt
 
 # 再次放宽权限，确保普通用户可写
 RUN chmod -R 777 /home/user /data && chmod +x /home/user/frp/frp-entry.sh
@@ -53,4 +58,4 @@ USER user
 # 以我们自己的配置启动 supervisord（不读 /etc）
 ENTRYPOINT ["supervisord","-n","-c","/home/user/supervisor/supervisord.conf"]
 
-EXPOSE 25565
+EXPOSE 25565 7860
