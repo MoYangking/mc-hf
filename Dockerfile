@@ -41,9 +41,10 @@ RUN set -eux; \
 # 拷贝配置到 /home/user（不使用 /etc）
 COPY supervisord.conf /home/user/supervisor/supervisord.conf
 COPY frpc.toml.template /home/user/frp/frpc.toml.template
+COPY frp-entry.sh /home/user/frp/frp-entry.sh
 
 # 再次放宽权限，确保普通用户可写
-RUN chmod -R 777 /home/user /data
+RUN chmod -R 777 /home/user /data && chmod +x /home/user/frp/frp-entry.sh
 
 # 切换为普通用户；运行期不使用 root
 RUN useradd -m -d /home/user -s /bin/bash user || true && chmod -R 777 /home/user
