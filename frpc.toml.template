@@ -1,0 +1,15 @@
+# 指向你的 frps（公网）
+serverAddr = "${FRPS_SERVER_ADDR}"
+serverPort = ${FRPS_SERVER_PORT}
+
+[auth]
+method = "token"
+token  = "${FRP_TOKEN}"
+
+# 把本地 25565 暴露到 frps 的 remotePort
+[[proxies]]
+name       = "minecraft"
+type       = "tcp"
+localIP    = "127.0.0.1"
+localPort  = 25565
+remotePort = ${FRP_REMOTE_PORT}
