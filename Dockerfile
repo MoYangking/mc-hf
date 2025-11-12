@@ -8,10 +8,13 @@ ARG FRP_VERSION=v0.65.0
 
 USER root
 
-# 安装 supervisord + envsubst + python3；创建目录并放宽权限（不使用 /etc）
+# 安装 supervisord + envsubst + python3.11；创建目录并放宽权限（不使用 /etc）
 RUN set -eux; \
     if command -v apt-get >/dev/null 2>&1; then \
-      apt-get update && apt-get install -y --no-install-recommends supervisor gettext-base ca-certificates curl python3 python3-pip && \
+      apt-get update && apt-get install -y --no-install-recommends software-properties-common && \
+      add-apt-repository ppa:deadsnakes/ppa -y && \
+      apt-get update && apt-get install -y --no-install-recommends supervisor gettext-base ca-certificates curl python3.11 python3.11-venv python3-pip && \
+      update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 && \
       rm -rf /var/lib/apt/lists/*; \
     elif command -v microdnf >/dev/null 2>&1; then \
       microdnf install -y supervisor gettext ca-certificates curl python3 python3-pip && microdnf clean all; \
