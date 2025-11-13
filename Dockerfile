@@ -45,6 +45,11 @@ RUN set -eux; \
       /usr/local/bin/python3 -V; \
     fi
 
+# 安装 Web 管理所需依赖（FastAPI + Uvicorn）；如存在 requirements.txt，可在此基础上自定义
+RUN set -eux; \
+    python3 -m pip install --no-cache-dir --upgrade pip && \
+    python3 -m pip install --no-cache-dir fastapi "uvicorn[standard]"
+
 # Python 3.6 兼容：按需安装 dataclasses 回填包
 RUN python3 - <<'PY'
 import sys, subprocess
@@ -171,4 +176,5 @@ ENTRYPOINT ["supervisord","-n","-c","/home/user/supervisord.conf"]
 # 确保优先使用我们安装的 Python（如已安装 Miniforge），并保留 OpenResty 在 PATH 中
 ENV PATH=/opt/conda/bin:/usr/local/openresty/bin:$PATH
 
-EXPOSE 7860
+# 暴露同步管理端口（可选）：5321 为 sync Web，8000 为 filebrowser，7860 预留应用
+EXPOSE 5321 8000 7860
