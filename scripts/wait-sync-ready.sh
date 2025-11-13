@@ -8,7 +8,7 @@
 set -Euo pipefail
 
 BASE=${BASE:-/}
-HIST_DIR=${HIST_DIR:-/home/user/.astrbot-backup}
+HIST_DIR=${HIST_DIR:-/home/user/.git-backup}
 BRANCH=${GIT_BRANCH:-main}
 declare -a TARGETS=()
 

@@ -14,7 +14,7 @@ from typing import List, Dict, Any
 
 
 DEFAULT_BASE = os.environ.get("BASE", "/")
-DEFAULT_HIST_DIR = os.environ.get("HIST_DIR", "/home/user/.astrbot-backup")
+DEFAULT_HIST_DIR = os.environ.get("HIST_DIR", "/home/user/.git-backup")
 DEFAULT_BRANCH = os.environ.get("GIT_BRANCH", "main")
 
 # Targets are relative to BASE; mirrors under HIST_DIR preserving path components
@@ -147,8 +147,8 @@ def to_abs_under_base(base: str, rel: str) -> str:
 
 def to_under_hist(hist: str, rel: str) -> str:
     """将 BASE 相对路径映射到历史仓库内部同结构路径。
-    例如 hist='/home/user/.astrbot-backup'，rel='home/user/AstrBot/data'
-    → '/home/user/.astrbot-backup/home/user/AstrBot/data'
+    例如 hist='/home/user/.git-backup'，rel='home/user/AstrBot/data'
+    → '/home/user/.git-backup/home/user/AstrBot/data'
     """
     rel = rel.lstrip("/")
     return os.path.normpath(os.path.join(hist, rel))
