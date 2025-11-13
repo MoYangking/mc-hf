@@ -35,14 +35,14 @@ RUN set -eux; \
     elif command -v microdnf >/dev/null 2>&1 || command -v dnf >/dev/null 2>&1 || command -v yum >/dev/null 2>&1; then \
       . /etc/os-release; \
       if [ "${ID}" = "fedora" ]; then OS_PATH=fedora; else OS_PATH=centos; fi; \
-      cat > /etc/yum.repos.d/openresty.repo <<EOF
-[openresty]
-name=Official OpenResty Open Source Repository
-baseurl=https://openresty.org/package/${OS_PATH}/\$releasever/\$basearch
-gpgcheck=1
-enabled=1
-gpgkey=https://openresty.org/package/pubkey.gpg
-      EOF \
+      printf '%s\n' \
+        '[openresty]' \
+        'name=Official OpenResty Open Source Repository' \
+        "baseurl=https://openresty.org/package/${OS_PATH}/\\$releasever/\\$basearch" \
+        'gpgcheck=1' \
+        'enabled=1' \
+        'gpgkey=https://openresty.org/package/pubkey.gpg' \
+        > /etc/yum.repos.d/openresty.repo; \
       if command -v microdnf >/dev/null 2>&1; then \
         microdnf install -y openresty && microdnf clean all; \
       elif command -v dnf >/dev/null 2>&1; then \
