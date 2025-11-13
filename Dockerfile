@@ -10,10 +10,10 @@ ARG FB_ADMIN_PASS=adminadminadmin
 
 USER root
 
-# 安装 supervisord + envsubst + python3；创建目录并放宽权限（不使用 /etc）
+# 安装 supervisord + envsubst + python3 + git；创建目录并放宽权限（不使用 /etc）
 RUN set -eux; \
     if command -v apt-get >/dev/null 2>&1; then \
-      apt-get update && apt-get install -y --no-install-recommends supervisor gettext-base ca-certificates curl jq python3 python3-pip python3-venv && \
+      apt-get update && apt-get install -y --no-install-recommends supervisor gettext-base ca-certificates curl jq git gnupg lsb-release python3 python3-pip python3-venv && \
       rm -rf /var/lib/apt/lists/*; \
     elif command -v microdnf >/dev/null 2>&1; then \
       microdnf install -y supervisor gettext ca-certificates curl jq python3 python3-pip && microdnf clean all; \
@@ -22,6 +22,19 @@ RUN set -eux; \
     fi; \
     mkdir -p /home/user/supervisor /home/user/run /home/user/frp /home/user/logs /data /tmp; \
     chmod -R 777 /home/user /data /tmp
+
+# 安装 OpenResty（内置 LuaJIT/ngx_lua），以支持动态路由的 nginx.conf
+RUN set -eux; \
+    if command -v apt-get >/dev/null 2>&1; then \
+      . /etc/os-release; \
+      curl -fsSL https://openresty.org/package/pubkey.gpg | gpg --dearmor -o /usr/share/keyrings/openresty.gpg; \
+      if [ "${ID:-ubuntu}" = "ubuntu" ]; then DIST=ubuntu; else DIST=debian; fi; \
+      echo "deb [signed-by=/usr/share/keyrings/openresty.gpg] http://openresty.org/package/${DIST} $(lsb_release -sc) main" > /etc/apt/sources.list.d/openresty.list; \
+      apt-get update && apt-get install -y --no-install-recommends openresty && rm -rf /var/lib/apt/lists/*; \
+      mkdir -p /etc/nginx && ln -sf /usr/local/openresty/nginx/conf/mime.types /etc/nginx/mime.types; \
+    else \
+      echo "OpenResty install only implemented for apt-based images" >&2; exit 1; \
+    fi
 
 # 下载并安装 frp 到 /usr/local/bin（运行期以普通用户执行）
 RUN set -eux; \
@@ -44,6 +57,9 @@ RUN set -eux; \
 
 # 拷贝配置到 /home/user（不使用 /etc）
 COPY supervisord.conf /home/user/supervisor/supervisord.conf
+COPY nginx/nginx.conf /home/user/nginx/nginx.conf
+COPY nginx/default_admin_config.json /home/user/nginx/default_admin_config.json
+COPY nginx/route-admin /home/user/nginx/route-admin
 COPY frpc.toml.template /home/user/frp/frpc.toml.template
 COPY frp-entry.sh /home/user/frp/frp-entry.sh
  
@@ -70,7 +86,9 @@ RUN set -eux; \
     /home/user/filebrowser users add "${FB_ADMIN_USER}" "${FB_ADMIN_PASS}" --perm.admin --database /home/user/filebrowser.db
 
 # 再次放宽权限，确保普通用户可写
-RUN chmod -R 777 /home/user /data && chmod +x /home/user/frp/frp-entry.sh /home/user/filebrowser
+RUN mkdir -p /home/user/nginx/tmp/body /home/user/nginx/tmp/proxy /home/user/nginx/tmp/fastcgi /home/user/nginx/tmp/uwsgi /home/user/nginx/tmp/scgi && \
+    chmod -R 777 /home/user/nginx && \
+    chmod -R 777 /home/user /data && chmod +x /home/user/frp/frp-entry.sh /home/user/filebrowser
 
 # 切换为普通用户；运行期不使用 root
 RUN useradd -m -d /home/user -s /bin/bash user || true && chmod -R 777 /home/user
@@ -79,4 +97,6 @@ USER user
 # 以我们自己的配置启动 supervisord（不读 /etc）
 ENTRYPOINT ["supervisord","-n","-c","/home/user/supervisor/supervisord.conf"]
 
-EXPOSE 25565 7860
+ENV PATH=/usr/local/openresty/bin:$PATH
+
+EXPOSE 7860
