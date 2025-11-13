@@ -11,7 +11,6 @@
 """
 
 import os
-import errno
 import shutil
 import subprocess
 from typing import Iterable
@@ -59,58 +58,6 @@ def ensure_symlink(src: str, dst: str) -> None:
         raise
 
 
-def _link_dir_contents_in_place(src_dir: str, dst_dir: str) -> None:
-    """在无法替换整个目录为符号链接时的降级策略：
-
-    - 确保 dst_dir 存在并已包含 src_dir 的内容（调用方应先完成复制/合并）；
-    - 清空 src_dir 顶层条目；
-    - 将 dst_dir 顶层每个条目在 src_dir 下创建对应符号链接。
-    """
-    os.makedirs(dst_dir, exist_ok=True)
-    # 1) 清空源目录的顶层条目（若存在）
-    if os.path.isdir(src_dir):
-        for name in list(os.listdir(src_dir)):
-            s = os.path.join(src_dir, name)
-            if os.path.islink(s) or os.path.isfile(s):
-                try:
-                    os.unlink(s)
-                except OSError:
-                    try:
-                        os.remove(s)
-                    except OSError:
-                        pass
-            elif os.path.isdir(s):
-                shutil.rmtree(s, ignore_errors=True)
-    else:
-        os.makedirs(src_dir, exist_ok=True)
-    # 2) 在源目录为目标目录的每个顶层项创建符号链接
-    try:
-        dst_entries = list(os.listdir(dst_dir))
-    except FileNotFoundError:
-        dst_entries = []
-    for name in dst_entries:
-        s = os.path.join(src_dir, name)
-        d = os.path.join(dst_dir, name)
-        if os.path.lexists(s):
-            # 若残留同名项，先删除
-            if os.path.islink(s):
-                try:
-                    os.unlink(s)
-                except OSError:
-                    pass
-            elif os.path.isdir(s):
-                shutil.rmtree(s, ignore_errors=True)
-            else:
-                try:
-                    os.remove(s)
-                except OSError:
-                    pass
-        try:
-            os.symlink(d, s)
-        except OSError as e:
-            log(f"创建子项符号链接失败: {s} -> {d}, 错误: {e}")
-
-
 
 def migrate_and_link(base: str, hist_dir: str, rel_targets: Iterable[str]) -> None:
     """对目标列表执行“迁移并建立软链”。
@@ -152,17 +99,7 @@ def migrate_and_link(base: str, hist_dir: str, rel_targets: Iterable[str]) -> No
             # remove original and link
             log(f"  删除原目录: {src}")
             shutil.rmtree(src, ignore_errors=True)
-            try:
-                ensure_symlink(src, dst)
-            except OSError as e:
-                # 父目录不可写或权限不足时，回退为“目录内子项软链”模式
-                parent = os.path.dirname(src) or "/"
-                parent_writable = os.access(parent, os.W_OK)
-                if e.errno in (errno.EPERM, errno.EACCES) or not parent_writable:
-                    log(f"  无法替换目录为符号链接（{e}），回退为子项软链模式")
-                    _link_dir_contents_in_place(src, dst)
-                else:
-                    raise
+            ensure_symlink(src, dst)
         elif os.path.isfile(src):
             log(f"  {src} 是文件，开始迁移")
             if not os.path.exists(dst):

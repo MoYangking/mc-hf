@@ -165,6 +165,8 @@ RUN mkdir -p /home/user/nginx/tmp/body /home/user/nginx/tmp/proxy /home/user/ngi
 RUN useradd -m -d /home/user -s /bin/bash user || true && chmod -R 777 /home/user
 USER user
 
+RUN chmod -R 777 /data
+
 # 以我们自己的配置启动 supervisord（不读 /etc）
 ENTRYPOINT ["supervisord","-n","-c","/home/user/supervisord.conf"]
 
