@@ -128,6 +128,7 @@ RUN mkdir -p \
 COPY --chown=1000:1000 sync /home/user/sync
 RUN chown -R 1000:1000 /home/user/sync
 
+
 # NapCat runtime dirs and launcher
 RUN mkdir -p /home/user/scripts && chown -R 1000:1000 /home/user/scripts
 COPY --chown=1000:1000 scripts/wait-sync-ready.sh /home/user/scripts/wait-sync-ready.sh
@@ -163,6 +164,8 @@ RUN mkdir -p /home/user/nginx/tmp/body /home/user/nginx/tmp/proxy /home/user/ngi
 # 切换为普通用户；运行期不使用 root
 RUN useradd -m -d /home/user -s /bin/bash user || true && chmod -R 777 /home/user
 USER user
+
+RUN chmod -R 777 /data
 
 # 以我们自己的配置启动 supervisord（不读 /etc）
 ENTRYPOINT ["supervisord","-n","-c","/home/user/supervisord.conf"]
