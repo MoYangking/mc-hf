@@ -122,7 +122,7 @@ RUN set -eux; \
     tar -xzf /tmp/fb.tgz -C /tmp; \
     install -m 0755 /tmp/filebrowser /home/user/filebrowser || { cp /tmp/filebrowser /home/user/filebrowser && chmod 0755 /home/user/filebrowser; }; \
     rm -f /tmp/fb.tgz /tmp/filebrowser; \
-    /home/user/filebrowser config init --address 0.0.0.0 --port 7860 --root /data --database /home/user/filebrowser.db; \
+    /home/user/filebrowser config init --address 0.0.0.0 --port 8000 --root /data --database /home/user/filebrowser.db; \
     if [ "${#FB_ADMIN_PASS}" -lt 12 ]; then echo "ERROR: FB_ADMIN_PASS must be at least 12 characters" >&2; exit 1; fi; \
     /home/user/filebrowser users add "${FB_ADMIN_USER}" "${FB_ADMIN_PASS}" --perm.admin --database /home/user/filebrowser.db
 
