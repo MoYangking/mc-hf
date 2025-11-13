@@ -136,7 +136,7 @@ RUN useradd -m -d /home/user -s /bin/bash user || true && chmod -R 777 /home/use
 USER user
 
 # 以我们自己的配置启动 supervisord（不读 /etc）
-ENTRYPOINT ["supervisord","-n","-c","/home/user/supervisor/supervisord.conf"]
+ENTRYPOINT ["supervisord","-n","-c","/home/user/supervisord.conf"]
 
 ENV PATH=/usr/local/openresty/bin:$PATH
 
