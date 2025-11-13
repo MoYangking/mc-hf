@@ -18,7 +18,20 @@
       "action": "proxy",
       "id": "proxy-sync",
       "priority": 180
+    },
+    {
+      "match": { "path_equal": "/terminal" },
+      "redirect_to": "/terminal/",
+      "action": "redirect",
+      "id": "redirect-terminal-slash",
+      "priority": 200
+    },
+    {
+      "match": { "path_prefix": "/terminal/" },
+      "backend": "http://127.0.0.1:7681",
+      "action": "proxy",
+      "id": "proxy-terminal",
+      "priority": 180
     }
   ]
 }
-

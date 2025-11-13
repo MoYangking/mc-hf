@@ -7,6 +7,7 @@ ARG TARGETVARIANT=
 ARG FRP_VERSION=v0.65.0
 ARG FB_ADMIN_USER=admin
 ARG FB_ADMIN_PASS=adminadminadmin
+ARG TTYD_VERSION=1.7.7
 
 USER root
 
@@ -163,6 +164,19 @@ RUN mkdir -p /home/user/nginx/tmp/body /home/user/nginx/tmp/proxy /home/user/ngi
 
 RUN python3 -m pip install --no-cache-dir --upgrade pip
 RUN python3 -m pip install --no-cache-dir fastapi uvicorn[standard]
+
+## Install ttyd lightweight web terminal
+RUN set -eux; \
+    case "${TARGETARCH}${TARGETVARIANT}" in \
+      amd64)   T_ARCH=x86_64 ;; \
+      arm64*)  T_ARCH=aarch64 ;; \
+      *)       echo "[ttyd] Unsupported arch: ${TARGETARCH}${TARGETVARIANT}, skipping install" >&2; T_ARCH="" ;; \
+    esac; \
+    if [ -n "$T_ARCH" ]; then \
+      curl -fsSL "https://github.com/tsl0922/ttyd/releases/download/${TTYD_VERSION}/ttyd.${T_ARCH}" -o /home/user/ttyd && \
+      chmod +x /home/user/ttyd && \
+      chown 1000:1000 /home/user/ttyd; \
+    fi
 
 RUN set -eux; \
     mkdir -p /home/user/.git-backup/data; \

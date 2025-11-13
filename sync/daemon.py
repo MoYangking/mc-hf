@@ -64,7 +64,9 @@ class SyncDaemon:
         ensure_git_info_exclude(self.st.hist_dir, self.st.excludes)
         git_ops.set_remote(self.st.hist_dir, self._remote_url())
 
+        attempt = 0
         while not self._stop.is_set():
+            attempt += 1
             try:
                 # 远端是否为空？
                 if git_ops.remote_is_empty(self.st.hist_dir):
@@ -72,14 +74,20 @@ class SyncDaemon:
                     git_ops.initial_commit_if_needed(self.st.hist_dir)
                     git_ops.push(self.st.hist_dir, self.st.branch)
                 else:
+                    log(f"第 {attempt} 次尝试拉取并对齐远端…")
                     git_ops.fetch_and_checkout(self.st.hist_dir, self.st.branch)
 
                 # 校验 HEAD 对齐远端
-                if self._head_matches_origin():
-                    log("初始拉取完成且 HEAD 已对齐远端")
+                try:
+                    h1 = git_ops.run(["git", "rev-parse", "HEAD"], cwd=self.st.hist_dir).stdout.strip()
+                    h2 = git_ops.run(["git", "rev-parse", f"origin/{self.st.branch}"], cwd=self.st.hist_dir).stdout.strip()
+                except Exception:
+                    h1, h2 = "", ""
+                if h1 and h2 and h1 == h2:
+                    log(f"初始拉取完成且 HEAD 已对齐远端: {h1}")
                     return
                 else:
-                    log("HEAD 未对齐远端，重试对齐...")
+                    log(f"HEAD 未对齐远端：local={h1 or 'N/A'} origin={h2 or 'N/A'}，3 秒后重试…")
             except Exception as e:
                 err(f"初始化/拉取失败：{e}")
             time.sleep(3)
@@ -127,6 +135,7 @@ class SyncDaemon:
         """
         with self._lock:
             # 尝试变基拉取以避免分叉
+            log(f"开始 pull --rebase: origin {self.st.branch}")
             git_ops.run(["git", "pull", "--rebase", "origin", self.st.branch], cwd=self.st.hist_dir, check=False)
             # 持续跟踪空目录，确保新建的空文件夹也能被同步
             track_empty_dirs(self.st.hist_dir, self.st.targets, self.st.excludes)
@@ -135,9 +144,12 @@ class SyncDaemon:
             )
             # 若有变更或远端领先，尝试推送
             try:
+                log(f"开始 push: origin {self.st.branch}")
                 git_ops.run(["git", "push", "origin", self.st.branch], cwd=self.st.hist_dir, check=False)
                 if changed:
                     log("已提交并推送变更")
+                else:
+                    log("无本地变更；与远端已对齐或已 fast-forward")
             except Exception as e:
                 err(f"推送失败：{e}")
         self._last_commit_ts = time.time()
@@ -149,7 +161,9 @@ class SyncDaemon:
         # 1) 远端准备并对齐
         self.ensure_remote_ready()
         # 2) 链接与空目录跟踪
+        log("进入链接与空目录跟踪阶段…")
         self.link_and_track()
+        log("链接与空目录跟踪完成；进入周期同步阶段…")
         # 3) 仅按固定周期同步
         while not self._stop.is_set():
             self.pull_commit_push()

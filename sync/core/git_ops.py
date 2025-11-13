@@ -38,7 +38,7 @@ def ensure_repo(hist_dir: str, branch: str) -> None:
     """确保 `hist_dir` 已初始化为 Git 仓库，并设置为安全目录。"""
     os.makedirs(hist_dir, exist_ok=True)
     if not os.path.isdir(os.path.join(hist_dir, ".git")):
-        log(f"Initializing git repo at {hist_dir}")
+        log(f"初始化 Git 仓库: {hist_dir}")
         run(["git", "init", "-b", branch], cwd=hist_dir)
     # safety config
     try:
@@ -59,10 +59,10 @@ def set_remote(hist_dir: str, url: str) -> None:
     # add or update origin
     remotes = run(["git", "remote"], cwd=hist_dir).stdout.strip().splitlines()
     if "origin" in remotes:
-        log(f"Set origin to {url_masked}")
+        log(f"更新 origin URL: {url_masked}")
         run(["git", "remote", "set-url", "origin", url], cwd=hist_dir)
     else:
-        log(f"Add origin {url_masked}")
+        log(f"新增 origin: {url_masked}")
         run(["git", "remote", "add", "origin", url], cwd=hist_dir)
 
 
@@ -71,29 +71,42 @@ def remote_is_empty(hist_dir: str) -> bool:
     # No heads and no refs means empty
     heads = run(["git", "ls-remote", "--heads", "origin"], cwd=hist_dir, check=False).stdout.strip()
     all_refs = run(["git", "ls-remote", "origin"], cwd=hist_dir, check=False).stdout.strip()
-    return len(heads) == 0 and len(all_refs) == 0
+    is_empty = len(heads) == 0 and len(all_refs) == 0
+    log(f"远端仓库检查: heads={0 if not heads else len(heads.splitlines())}, refs={0 if not all_refs else len(all_refs.splitlines())}, empty={is_empty}")
+    return is_empty
 
 
 def fetch_and_checkout(hist_dir: str, branch: str) -> None:
-    """fetch 远端并将工作区对齐到目标分支（或远端默认分支）。"""
+    """fetch 远端并将工作区对齐到目标分支（或远端默认分支）。
+
+    额外日志：标注 fetch/checkout/reset 的关键步骤与最终 HEAD。
+    """
     # Fetch; if branch not present, fall back to remote HEAD
+    log(f"开始 fetch: origin (depth=1)")
     run(["git", "fetch", "--depth=1", "origin"], cwd=hist_dir)
+    log("fetch 完成")
     # Try target branch first
     ref_ok = run(["git", "rev-parse", f"origin/{branch}"], cwd=hist_dir, check=False).returncode == 0
     if ref_ok:
+        log(f"对齐到分支: {branch}")
         run(["git", "checkout", "-B", branch], cwd=hist_dir)
         run(["git", "reset", "--hard", f"origin/{branch}"], cwd=hist_dir)
+        head = run(["git", "rev-parse", "HEAD"], cwd=hist_dir).stdout.strip()
+        log(f"工作区已对齐 origin/{branch}，HEAD={head}")
         return
     # fallback: read HEAD symref to find default branch
-    head = run(["git", "ls-remote", "--symref", "origin", "HEAD"], cwd=hist_dir, check=False).stdout
+    sym = run(["git", "ls-remote", "--symref", "origin", "HEAD"], cwd=hist_dir, check=False).stdout
     default_branch = branch
-    for line in head.splitlines():
+    for line in sym.splitlines():
         if line.startswith("ref:"):
             default_branch = line.split()[1].split("/")[-1]
             break
+    log(f"目标分支不存在，回退到远端默认分支: {default_branch}")
     run(["git", "fetch", "--depth=1", "origin", default_branch], cwd=hist_dir)
     run(["git", "checkout", "-B", default_branch], cwd=hist_dir)
     run(["git", "reset", "--hard", f"origin/{default_branch}"], cwd=hist_dir)
+    head = run(["git", "rev-parse", "HEAD"], cwd=hist_dir).stdout.strip()
+    log(f"工作区已对齐 origin/{default_branch}，HEAD={head}")
 
 
 def initial_commit_if_needed(hist_dir: str) -> None:
@@ -105,12 +118,14 @@ def initial_commit_if_needed(hist_dir: str) -> None:
         if not os.path.exists(readme):
             with open(readme, "w", encoding="utf-8") as f:
                 f.write("This repository is initialized by sync.\n")
+        log("创建初始提交")
         run(["git", "add", "-A"], cwd=hist_dir)
         run(["git", "commit", "-m", "chore(sync): initial commit"], cwd=hist_dir)
 
 
 def push(hist_dir: str, branch: str) -> None:
     """执行 `git push -u origin <branch>`。"""
+    log(f"推送到远端: origin {branch}")
     run(["git", "push", "-u", "origin", branch], cwd=hist_dir)
 
 
