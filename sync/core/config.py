@@ -38,6 +38,7 @@ DEFAULT_TARGETS = (
 DEFAULT_EXCLUDES = (
     os.environ.get(
         "EXCLUDE_PATHS",
+        "",
     )
     .strip()
     .split()
