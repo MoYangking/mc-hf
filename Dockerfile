@@ -23,26 +23,22 @@ RUN set -eux; \
     mkdir -p /home/user/supervisor /home/user/run /home/user/frp /home/user/logs /data /tmp; \
     chmod -R 777 /home/user /data /tmp
 
-# 安装带 Lua 能力的 Nginx（apt 用官方包 + 动态模块；dnf/yum 走 OpenResty 以获得 lua）
+# 安装 OpenResty（内置 LuaJIT/ngx_lua），以支持动态路由的 nginx.conf
 RUN set -eux; \
     if command -v apt-get >/dev/null 2>&1; then \
-      apt-get update && \
-      apt-get install -y --no-install-recommends \
-        nginx libnginx-mod-http-lua libnginx-mod-http-ndk lua-cjson && \
-      rm -rf /var/lib/apt/lists/*; \
-      # 为自带 Nginx 写入需要加载的动态模块（lua/ndk）
-      mkdir -p /home/user/nginx; \
-      printf '%s\n%s\n' \
-        'load_module /usr/lib/nginx/modules/ndk_http_module.so;' \
-        'load_module /usr/lib/nginx/modules/ngx_http_lua_module.so;' \
-        > /home/user/nginx/modules.conf; \
+      . /etc/os-release; \
+      curl -fsSL https://openresty.org/package/pubkey.gpg | gpg --dearmor -o /usr/share/keyrings/openresty.gpg; \
+      if [ "${ID:-ubuntu}" = "ubuntu" ]; then DIST=ubuntu; else DIST=debian; fi; \
+      echo "deb [signed-by=/usr/share/keyrings/openresty.gpg] http://openresty.org/package/${DIST} $(lsb_release -sc) main" > /etc/apt/sources.list.d/openresty.list; \
+      apt-get update && apt-get install -y --no-install-recommends openresty && rm -rf /var/lib/apt/lists/*; \
+      mkdir -p /etc/nginx && ln -sf /usr/local/openresty/nginx/conf/mime.types /etc/nginx/mime.types; \
     elif command -v microdnf >/dev/null 2>&1 || command -v dnf >/dev/null 2>&1 || command -v yum >/dev/null 2>&1; then \
       . /etc/os-release; \
       if [ "${ID}" = "fedora" ]; then OS_PATH=fedora; else OS_PATH=centos; fi; \
       printf '%s\n' \
         '[openresty]' \
         'name=Official OpenResty Open Source Repository' \
-        "baseurl=https://openresty.org/package/${OS_PATH}/\\$releasever/\\$basearch" \
+        "baseurl=https://openresty.org/package/${OS_PATH}/"'$releasever/$basearch' \
         'gpgcheck=1' \
         'enabled=1' \
         'gpgkey=https://openresty.org/package/pubkey.gpg' \
@@ -55,10 +51,8 @@ RUN set -eux; \
         yum install -y openresty && yum clean all; \
       fi; \
       mkdir -p /etc/nginx && ln -sf /usr/local/openresty/nginx/conf/mime.types /etc/nginx/mime.types; \
-      # OpenResty 已内置 lua，无需加载模块；写一个空的占位文件避免 include 报错
-      mkdir -p /home/user/nginx && : > /home/user/nginx/modules.conf; \
     else \
-      echo "Lua-capable Nginx not implemented for this base image" >&2; exit 1; \
+      echo "OpenResty install not implemented for this base image" >&2; exit 1; \
     fi
 
 # 下载并安装 frp 到 /usr/local/bin（运行期以普通用户执行）
