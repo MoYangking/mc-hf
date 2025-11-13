@@ -32,8 +32,27 @@ RUN set -eux; \
       echo "deb [signed-by=/usr/share/keyrings/openresty.gpg] http://openresty.org/package/${DIST} $(lsb_release -sc) main" > /etc/apt/sources.list.d/openresty.list; \
       apt-get update && apt-get install -y --no-install-recommends openresty && rm -rf /var/lib/apt/lists/*; \
       mkdir -p /etc/nginx && ln -sf /usr/local/openresty/nginx/conf/mime.types /etc/nginx/mime.types; \
+    elif command -v microdnf >/dev/null 2>&1 || command -v dnf >/dev/null 2>&1 || command -v yum >/dev/null 2>&1; then \
+      . /etc/os-release; \
+      if [ "${ID}" = "fedora" ]; then OS_PATH=fedora; else OS_PATH=centos; fi; \
+      cat > /etc/yum.repos.d/openresty.repo <<EOF
+[openresty]
+name=Official OpenResty Open Source Repository
+baseurl=https://openresty.org/package/${OS_PATH}/\$releasever/\$basearch
+gpgcheck=1
+enabled=1
+gpgkey=https://openresty.org/package/pubkey.gpg
+      EOF \
+      if command -v microdnf >/dev/null 2>&1; then \
+        microdnf install -y openresty && microdnf clean all; \
+      elif command -v dnf >/dev/null 2>&1; then \
+        dnf install -y openresty && dnf clean all; \
+      else \
+        yum install -y openresty && yum clean all; \
+      fi; \
+      mkdir -p /etc/nginx && ln -sf /usr/local/openresty/nginx/conf/mime.types /etc/nginx/mime.types; \
     else \
-      echo "OpenResty install only implemented for apt-based images" >&2; exit 1; \
+      echo "OpenResty install not implemented for this base image" >&2; exit 1; \
     fi
 
 # 下载并安装 frp 到 /usr/local/bin（运行期以普通用户执行）
