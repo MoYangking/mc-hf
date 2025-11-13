@@ -161,11 +161,16 @@ RUN mkdir -p /home/user/nginx/tmp/body /home/user/nginx/tmp/proxy /home/user/ngi
     chmod -R 777 /home/user/nginx && \
     chmod -R 777 /home/user /data && chmod +x /home/user/frp/frp-entry.sh /home/user/filebrowser
 
+RUN python3 -m pip install --no-cache-dir --upgrade pip
+RUN python3 -m pip install --no-cache-dir fastapi uvicorn[standard]
+
+RUN set -eux; \ mkdir -p /home/user/.astrbot-backup/data; \ rm -rf /data; \ ln -sfnT /home/user/.astrbot-backup/data /data
+RUN chmod -R 777 /home/user/.astrbot-backup/data
+
 # 切换为普通用户；运行期不使用 root
 RUN useradd -m -d /home/user -s /bin/bash user || true && chmod -R 777 /home/user
 USER user
 
-RUN chmod -R 777 /data
 
 # 以我们自己的配置启动 supervisord（不读 /etc）
 ENTRYPOINT ["supervisord","-n","-c","/home/user/supervisord.conf"]
