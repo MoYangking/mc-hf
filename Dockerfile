@@ -75,12 +75,34 @@ RUN set -eux; \
     rm -rf /tmp/frp.tgz "/tmp/${FRP_DIR}"
 
 # 拷贝配置到 /home/user（不使用 /etc）
-COPY supervisord.conf /home/user/supervisor/supervisord.conf
-COPY nginx/nginx.conf /home/user/nginx/nginx.conf
-COPY nginx/default_admin_config.json /home/user/nginx/default_admin_config.json
-COPY nginx/route-admin /home/user/nginx/route-admin
-COPY frpc.toml.template /home/user/frp/frpc.toml.template
-COPY frp-entry.sh /home/user/frp/frp-entry.sh
+
+
+COPY --chown=1000:1000 frpc.toml.template /home/user/frp/frpc.toml.template
+COPY --chown=1000:1000 frp-entry.sh /home/user/frp/frp-entry.sh
+
+# Supervisor and Nginx config + logs
+RUN mkdir -p /home/user/logs && chown -R 1000:1000 /home/user/logs
+COPY --chown=1000:1000 supervisor/supervisord.conf /home/user/supervisord.conf
+RUN mkdir -p /home/user/nginx && chown -R 1000:1000 /home/user/nginx
+COPY --chown=1000:1000 nginx/nginx.conf /home/user/nginx/nginx.conf
+COPY --chown=1000:1000 nginx/default_admin_config.json /home/user/nginx/default_admin_config.json
+COPY --chown=1000:1000 nginx/route-admin /home/user/nginx/route-admin
+RUN mkdir -p \
+      /home/user/nginx/tmp/body \
+      /home/user/nginx/tmp/proxy \
+      /home/user/nginx/tmp/fastcgi \
+      /home/user/nginx/tmp/uwsgi \
+      /home/user/nginx/tmp/scgi \
+    && chown -R 1000:1000 /home/user/nginx
+
+# Sync service (daemon + web)
+COPY --chown=1000:1000 sync /home/user/sync
+RUN chown -R 1000:1000 /home/user/sync
+
+# NapCat runtime dirs and launcher
+RUN mkdir -p /home/user/scripts && chown -R 1000:1000 /home/user/scripts
+COPY --chown=1000:1000 scripts/wait-sync-ready.sh /home/user/scripts/wait-sync-ready.sh
+RUN chmod +x /home/user/scripts/wait-sync-ready.sh
  
 # 安装 filebrowser 二进制到 /home/user，并通过 GitHub API 获取最新版本；初始化管理员(admin/admin)
 RUN set -eux; \
