@@ -128,6 +128,8 @@ class SyncDaemon:
         with self._lock:
             # 尝试变基拉取以避免分叉
             git_ops.run(["git", "pull", "--rebase", "origin", self.st.branch], cwd=self.st.hist_dir, check=False)
+            # 再次执行一次迁移与软链以捕获新生成的文件/目录（例如首次回退为“子项软链”场景下的新内容）
+            migrate_and_link(self.st.base, self.st.hist_dir, self.st.targets)
             # 持续跟踪空目录，确保新建的空文件夹也能被同步
             track_empty_dirs(self.st.hist_dir, self.st.targets, self.st.excludes)
             changed = git_ops.add_all_and_commit_if_needed(
