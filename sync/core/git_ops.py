@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Git 子进程操作封装
 
 职责：

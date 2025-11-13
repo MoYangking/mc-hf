@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """最小管理 API/页面（可选）
 
 职责：
@@ -228,9 +226,10 @@ def serve(daemon=None) -> int:
     # Lazy import uvicorn to keep deps light if serve not used
     try:
         import uvicorn  # type: ignore
-    except Exception as e:
-        err("缺少 uvicorn/fastapi 依赖，请在容器内或手动安装后再试：pip install fastapi uvicorn")
-        return 1
+    except Exception:
+        # 在无 fastapi/uvicorn（例如 Python 3.6）的环境下，降级为仅运行守护进程。
+        err("缺少 uvicorn/fastapi 依赖，已降级为仅运行同步守护（无 Web）。")
+        return 2
 
     app = create_app(daemon=daemon)
     uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("SYNC_PORT", "5321")))

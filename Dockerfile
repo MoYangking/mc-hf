@@ -17,11 +17,40 @@ RUN set -eux; \
       rm -rf /var/lib/apt/lists/*; \
     elif command -v microdnf >/dev/null 2>&1; then \
       microdnf install -y supervisor gettext ca-certificates curl jq python3 python3-pip && microdnf clean all; \
-      else \
+    else \
       echo "Unsupported base for package install"; exit 1; \
     fi; \
     mkdir -p /home/user/supervisor /home/user/run /home/user/frp /home/user/logs /data /tmp; \
     chmod -R 777 /home/user /data /tmp
+
+# 统一提供 Python >=3.10（某些发行版默认仅有 3.6，会触发 __future__.annotations 语法错误）
+# 逻辑：若系统 python3 版本 <3.10，则安装 Miniforge，并将其放到 PATH 与 /usr/local/bin 覆盖系统 python3
+RUN set -eux; \
+    PYV=$(python3 -c 'import sys; print("%d.%d" % sys.version_info[:2])' 2>/dev/null || echo "0.0"); \
+    MAJOR=${PYV%%.*}; MINOR=${PYV##*.}; \
+    if [ "${MAJOR}" -lt 3 ] || [ "${MINOR}" -lt 10 ]; then \
+      echo "Installing Miniforge (Python >=3.10) to /opt/conda..."; \
+      ARCH=$(uname -m); \
+      case "$ARCH" in \
+        x86_64) MF=Miniforge3-Linux-x86_64.sh ;; \
+        aarch64) MF=Miniforge3-Linux-aarch64.sh ;; \
+        ppc64le) MF=Miniforge3-Linux-ppc64le.sh ;; \
+        *) MF=Miniforge3-Linux-x86_64.sh ;; \
+      esac; \
+      curl -fsSL "https://github.com/conda-forge/miniforge/releases/latest/download/${MF}" -o /tmp/miniforge.sh; \
+      bash /tmp/miniforge.sh -b -p /opt/conda; \
+      rm -f /tmp/miniforge.sh; \
+      ln -sf /opt/conda/bin/python /usr/local/bin/python3; \
+      ln -sf /opt/conda/bin/pip /usr/local/bin/pip3; \
+      /usr/local/bin/python3 -V; \
+    fi
+
+# Python 3.6 兼容：按需安装 dataclasses 回填包
+RUN python3 - <<'PY'
+import sys, subprocess
+if sys.version_info < (3,7):
+    subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--no-cache-dir', 'dataclasses<0.9'])
+PY
 
 # 安装 OpenResty（内置 LuaJIT/ngx_lua），以支持动态路由的 nginx.conf
 RUN set -eux; \
@@ -138,6 +167,7 @@ USER user
 # 以我们自己的配置启动 supervisord（不读 /etc）
 ENTRYPOINT ["supervisord","-n","-c","/home/user/supervisord.conf"]
 
-ENV PATH=/usr/local/openresty/bin:$PATH
+# 确保优先使用我们安装的 Python（如已安装 Miniforge），并保留 OpenResty 在 PATH 中
+ENV PATH=/opt/conda/bin:/usr/local/openresty/bin:$PATH
 
 EXPOSE 7860

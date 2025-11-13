@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """迁移与符号链接
 
 职责：

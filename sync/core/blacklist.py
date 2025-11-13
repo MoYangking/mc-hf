@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """黑名单：
 
 职责：
@@ -8,7 +6,7 @@ from __future__ import annotations
 """
 
 import os
-from typing import Iterable
+from typing import Iterable, Set
 
 from sync.utils.logging import log
 
@@ -32,7 +30,7 @@ def ensure_git_info_exclude(hist_dir: str, excludes: Iterable[str]) -> None:
     exfile = os.path.join(hist_dir, ".git", "info", "exclude")
     os.makedirs(os.path.dirname(exfile), exist_ok=True)
     try:
-        existing: set[str] = set()
+        existing: Set[str] = set()
         if os.path.exists(exfile):
             with open(exfile, "r", encoding="utf-8", errors="ignore") as f:
                 for line in f:

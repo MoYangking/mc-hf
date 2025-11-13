@@ -16,8 +16,6 @@
 - SYNC_INTERVAL：周期同步间隔（秒），默认 180。
 """
 
-from __future__ import annotations
-
 import os
 import threading
 import time
