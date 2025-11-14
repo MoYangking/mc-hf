@@ -187,7 +187,7 @@ RUN chmod -R 777 /home/user/.git-backup/data
 
 # 切换为普通用户；运行期不使用 root
 RUN useradd -m -d /home/user -s /bin/bash user || true && chmod -R 777 /home/user
-USER user
+#USER user
 
 
 # 以我们自己的配置启动 supervisord（不读 /etc）
