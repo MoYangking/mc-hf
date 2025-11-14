@@ -31,7 +31,7 @@
       "set_headers": [
         { "value": "/terminal", "name": "X-Forwarded-Prefix" }
       ],
-      "backend": "http://127.0.0.1:7681",
+      "backend": "http://127.0.0.1:8080",
       "action": "proxy",
       "id": "proxy-terminal",
       "priority": 180
