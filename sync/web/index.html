@@ -1,125 +1,383 @@
 <!doctype html>
 <html lang="zh-CN">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Sync 管理</title>
-    <style>
-      body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;padding:20px;background:#0b1220;color:#e4e7ec}
-      .wrap{max-width:960px;margin:0 auto}
-      .card{background:#111827;border:1px solid #1f2937;border-radius:12px;padding:16px;margin-bottom:16px}
-      button{background:#2563eb;color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer}
-      button:disabled{background:#334155;cursor:not-allowed}
-      code{background:#0f172a;padding:2px 6px;border-radius:6px}
-      table{width:100%;border-collapse:collapse}
-      td,th{border-bottom:1px solid #1f2937;padding:8px;text-align:left}
-    </style>
-  </head>
-  <body>
-    <div class="wrap">
-      <h2>Sync 管理</h2>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sync 管理</title>
+  <!-- 引入 Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- 引入 Inter 字体 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    /* 使用 Inter 字体作为基础字体 */
+    body {
+      font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    }
+    
+    /* 定义卡片基础样式 */
+    .card {
+      @apply bg-slate-800 border border-slate-700 rounded-xl shadow-lg;
+    }
+    
+    /* 定义主操作按钮样式 */
+    .btn-action {
+      @apply w-full flex items-center justify-start gap-3 text-left py-2.5 px-4 rounded-lg font-medium transition-all duration-150;
+      @apply bg-blue-600 text-white hover:bg-blue-500;
+      @apply disabled:bg-slate-600 disabled:opacity-70 disabled:cursor-not-allowed;
+    }
+    
+    /* 定义保存按钮样式 */
+    .btn-save {
+       @apply flex items-center justify-center gap-2 py-2 px-4 rounded-lg font-medium transition-all duration-150;
+       @apply bg-green-600 text-white hover:bg-green-500;
+       @apply disabled:bg-slate-600 disabled:opacity-70 disabled:cursor-not-allowed;
+    }
+    
+    /* 定义输入框和文本域样式 */
+    .form-input {
+      @apply w-full h-40 bg-slate-900 border border-slate-700 rounded-lg p-3 text-slate-200 font-mono text-sm;
+      @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+    }
+    
+    /* Toast 通知的动画 */
+    @keyframes toast-in {
+      from {
+        opacity: 0;
+        transform: translateX(100%);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+    @keyframes toast-out {
+      from {
+        opacity: 1;
+        transform: translateX(0);
+      }
+      to {
+        opacity: 0;
+        transform: translateX(100%);
+      }
+    }
+    .animate-toast-in {
+      animation: toast-in 0.3s ease-out forwards;
+    }
+    .animate-toast-out {
+      animation: toast-out 0.3s ease-in forwards;
+    }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-200 p-4 md:p-8">
 
-      <div class="card">
-        <button id="btnInit">执行初始化</button>
-        <button id="btnSync">立即同步</button>
-        <button id="btnPull">仅拉取</button>
-        <button id="btnPush">仅推送</button>
-        <button id="btnRelink">重新链接</button>
-        <button id="btnTrack">跟踪空目录</button>
-        <button id="btnRefresh">刷新状态</button>
-      </div>
+  <!-- 主内容容器 -->
+  <div class="max-w-7xl mx-auto">
+    
+    <!-- 顶栏 -->
+    <header class="flex justify-between items-center mb-6">
+      <h1 class="text-3xl font-bold text-white">Sync 管理面板</h1>
+      <button id="btnRefresh" class="flex items-center gap-2 py-2 px-4 rounded-lg bg-slate-700 hover:bg-slate-600 transition-all text-sm font-medium">
+        <!-- 刷新图标 -->
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+        </svg>
+        刷新状态
+      </button>
+    </header>
 
-      <div class="card">
-        <h3>状态</h3>
-        <pre id="status">加载中...</pre>
-      </div>
+    <!-- 栅格布局 -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-      <div class="card">
-        <h3>目标与黑名单</h3>
-        <div style="display:flex; gap:16px; flex-wrap:wrap;">
-          <div style="flex:1; min-width:300px;">
-            <h4>同步目标 (每行一个，相对 BASE)</h4>
-            <textarea id="txtTargets" style="width:100%;height:120px"></textarea>
-            <div style="margin-top:8px"><button id="btnSaveTargets">保存目标</button></div>
-          </div>
-          <div style="flex:1; min-width:300px;">
-            <h4>黑名单 (每行一个，相对 HIST_DIR)</h4>
-            <textarea id="txtExcludes" style="width:100%;height:120px"></textarea>
-            <div style="margin-top:8px"><button id="btnSaveExcludes">保存黑名单</button></div>
+      <!-- 左侧：快捷操作 -->
+      <div class="lg:col-span-1 flex flex-col gap-6">
+        <div class="card p-6">
+          <h3 class="text-xl font-semibold text-white mb-4">快捷操作</h3>
+          <div class="flex flex-col gap-3">
+            <button id="btnInit" class="btn-action">
+              <!-- 图标 -->
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" /></svg>
+              <span>执行初始化</span>
+            </button>
+            <button id="btnSync" class="btn-action">
+              <!-- 图标 -->
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0l-3 3m3-3l3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.33-2.33 3 3 0 013.75 3.75 3 3 0 01-3.75 3.75H6.75z" /></svg>
+              <span>立即同步</span>
+            </button>
+            <button id="btnPull" class="btn-action">
+              <!-- 图标 -->
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+              <span>仅拉取</span>
+            </button>
+            <button id="btnPush" class="btn-action">
+              <!-- 图标 -->
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>
+              <span>仅推送</span>
+            </button>
+            <button id="btnRelink" class="btn-action">
+              <!-- 图标 -->
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" /></svg>
+              <span>重新链接</span>
+            </button>
+            <button id="btnTrack" class="btn-action">
+              <!-- 图标 -->
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10.5v6m3-3H9m4.06-7.19l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" /></svg>
+              <span>跟踪空目录</span>
+            </button>
           </div>
         </div>
       </div>
 
-      <div class="card">
-        <h3>说明</h3>
-        <ul>
-          <li>环境变量 <code>GITHUB_PAT</code>, <code>GITHUB_REPO</code> 必须已配置。</li>
-          <li>启动后后台每 3 分钟自动提交/推送；也可点击“立即同步”。</li>
-          <li>黑名单相对 <code>HIST_DIR</code>，可在此页面修改并即时生效。</li>
-        </ul>
+      <!-- 右侧：状态与配置 -->
+      <div class="lg:col-span-2 flex flex-col gap-6">
+        
+        <!-- 状态卡片 -->
+        <div class="card p-6">
+          <h3 class="text-xl font-semibold text-white mb-4">当前状态</h3>
+          <pre id="status" class="bg-slate-900 p-4 rounded-lg overflow-x-auto text-sm text-slate-300 min-h-[200px]">加载中...</pre>
+        </div>
+
+        <!-- 目标与黑名单卡片 -->
+        <div class="card p-6">
+          <h3 class="text-xl font-semibold text-white mb-4">目标与黑名单</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- 同步目标 -->
+            <div>
+              <h4 class="font-medium text-slate-100 mb-2">同步目标 (每行一个，相对 BASE)</h4>
+              <textarea id="txtTargets" class="form-input"></textarea>
+              <div style="margin-top:8px">
+                <button id="btnSaveTargets" class="btn-save">
+                  <!-- 图标 -->
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 14.25h13.5m-13.5 0a3 3 0 01-3-3V7.5a3 3 0 013-3h13.5a3 3 0 013 3v3.75a3 3 0 01-3 3m-13.5 0h13.5" /></svg>
+                  <span>保存目标</span>
+                </button>
+              </div>
+            </div>
+            <!-- 黑名单 -->
+            <div>
+              <h4 class="font-medium text-slate-100 mb-2">黑名单 (每行一个，相对 HIST_DIR)</h4>
+              <textarea id="txtExcludes" class="form-input"></textarea>
+              <div style="margin-top:8px">
+                <button id="btnSaveExcludes" class="btn-save">
+                  <!-- 图标 -->
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 14.25h13.5m-13.5 0a3 3 0 01-3-3V7.5a3 3 0 013-3h13.5a3 3 0 013 3v3.75a3 3 0 01-3 3m-13.5 0h13.5" /></svg>
+                  <span>保存黑名单</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 说明卡片 -->
+        <div class="card p-6">
+          <h3 class="text-xl font-semibold text-white mb-4">说明</h3>
+          <ul class="list-disc list-inside space-y-2 text-slate-300">
+            <li>环境变量 <code class="bg-slate-700 text-yellow-300 px-2 py-1 rounded">GITHUB_PAT</code>, <code class="bg-slate-700 text-yellow-300 px-2 py-1 rounded">GITHUB_REPO</code> 必须已配置。</li>
+            <li>启动后后台每 3 分钟自动提交/推送；也可点击“立即同步”。</li>
+            <li>黑名单相对 <code class="bg-slate-700 text-yellow-300 px-2 py-1 rounded">HIST_DIR</code>，可在此页面修改并即时生效。</li>
+          </ul>
+        </div>
+
       </div>
     </div>
-    <script>
-      async function loadStatus(){
-        const res = await fetch('/sync/api/status');
-        const j = await res.json();
-        document.getElementById('status').textContent = JSON.stringify(j,null,2);
-        // populate editors
-        if (Array.isArray(j.targets)) document.getElementById('txtTargets').value = j.targets.join('\n');
-        if (Array.isArray(j.excludes)) document.getElementById('txtExcludes').value = j.excludes.join('\n');
-      }
-      async function post(path, body){
-        const res = await fetch(path, {method:'POST', headers:{'Content-Type':'application/json'}, body: body?JSON.stringify(body):undefined});
-        return res.json();
-      }
-      async function doInit(btn){
+  </div>
+
+  <!-- Toast 通知容器 -->
+  <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-3 w-72">
+    <!-- Toast 通知将动态插入到这里 -->
+  </div>
+
+  <script>
+    // --- Toast 通知系统 ---
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      
+      const bgColor = type === 'success' ? 'bg-green-600' : 'bg-red-600';
+      const icon = type === 'success' ?
+        `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>` :
+        `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126z" /></svg>`;
+
+      toast.className = `w-full ${bgColor} text-white p-4 rounded-lg shadow-xl flex items-center gap-3 animate-toast-in`;
+      toast.innerHTML = `
+        <div class="flex-shrink-0">${icon}</div>
+        <div class="flex-grow text-sm font-medium">${message}</div>
+      `;
+      
+      container.appendChild(toast);
+      
+      setTimeout(() => {
+        toast.classList.remove('animate-toast-in');
+        toast.classList.add('animate-toast-out');
+        toast.addEventListener('animationend', () => toast.remove());
+      }, 4000); // 4秒后自动消失
+    }
+
+    // --- 加载状态 ---
+    const loadingSpinnerSVG = `
+      <svg class="animate-spin -ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+    `;
+
+    /**
+     * 切换按钮的加载状态
+     * @param {HTMLElement} btn - 目标按钮
+     * @param {boolean} isLoading - 是否处于加载中
+     * @param {string} [loadingText='处理中...'] - 加载时显示的文本
+     */
+    function toggleButtonLoading(btn, isLoading, loadingText = '处理中...') {
+      if (isLoading) {
         btn.disabled = true;
-        try{
-          const j = await post('/sync/api/init');
-          alert(j.ok? '初始化完成' : ('失败: '+(j.error||'未知错误')));
-          await loadStatus();
-        }catch(e){
-          alert('请求失败: '+e);
-        }finally{
-          btn.disabled = false;
+        // 存储原始 HTML
+        btn.dataset.originalHtml = btn.innerHTML;
+        // 查找按钮内的文本节点并替换
+        const span = btn.querySelector('span');
+        if (span) {
+          span.textContent = loadingText;
+        }
+        // 添加加载图标
+        if (!btn.querySelector('svg.animate-spin')) {
+           btn.insertAdjacentHTML('afterbegin', loadingSpinnerSVG);
+        }
+      } else {
+        btn.disabled = false;
+        // 恢复原始 HTML
+        if (btn.dataset.originalHtml) {
+          btn.innerHTML = btn.dataset.originalHtml;
         }
       }
-      async function doSimple(btn, path, okMsg){
-        btn.disabled = true;
-        try{ const j = await post(path); alert(j.ok? okMsg : ('失败: '+(j.error||'未知错误'))); await loadStatus(); }
-        catch(e){ alert('请求失败: '+e); }
-        finally{ btn.disabled = false; }
+    }
+
+
+    // --- API 调用 ---
+
+    async function loadStatus() {
+      try {
+        const res = await fetch('/sync/api/status');
+        const j = await res.json();
+        document.getElementById('status').textContent = JSON.stringify(j, null, 2);
+        // 填充编辑器
+        if (Array.isArray(j.targets)) document.getElementById('txtTargets').value = j.targets.join('\n');
+        if (Array.isArray(j.excludes)) document.getElementById('txtExcludes').value = j.excludes.join('\n');
+      } catch (e) {
+        document.getElementById('status').textContent = '加载状态失败: \n' + e;
+        showToast('加载状态失败: ' + e, 'error');
       }
-      async function saveTargets(btn){
-        btn.disabled = true;
-        try{
-          const lines = document.getElementById('txtTargets').value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
-          const j = await post('/sync/api/targets', {targets: lines});
-          alert(j.ok? '已保存' : ('失败: '+(j.error||'未知错误')));
-          await loadStatus();
-        }catch(e){ alert('请求失败: '+e); }
-        finally{ btn.disabled = false; }
+    }
+
+    async function post(path, body) {
+      const res = await fetch(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: body ? JSON.stringify(body) : undefined
+      });
+      return res.json();
+    }
+
+    async function doInit(btn) {
+      toggleButtonLoading(btn, true);
+      try {
+        const j = await post('/sync/api/init');
+        if (j.ok) {
+          showToast('初始化完成');
+        } else {
+          showToast('失败: ' + (j.error || '未知错误'), 'error');
+        }
+        await loadStatus();
+      } catch (e) {
+        showToast('请求失败: ' + e, 'error');
+      } finally {
+        toggleButtonLoading(btn, false);
       }
-      async function saveExcludes(btn){
-        btn.disabled = true;
-        try{
-          const lines = document.getElementById('txtExcludes').value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
-          const j = await post('/sync/api/excludes', {excludes: lines});
-          alert(j.ok? '已保存' : ('失败: '+(j.error||'未知错误')));
-          await loadStatus();
-        }catch(e){ alert('请求失败: '+e); }
-        finally{ btn.disabled = false; }
+    }
+
+    async function doSimple(btn, path, okMsg, loadingText = '执行中...') {
+      toggleButtonLoading(btn, true, loadingText);
+      try {
+        const j = await post(path);
+        if (j.ok) {
+          showToast(okMsg);
+        } else {
+          showToast('失败: ' + (j.error || '未知错误'), 'error');
+        }
+        await loadStatus();
+      } catch (e) {
+        showToast('请求失败: ' + e, 'error');
+      } finally {
+        toggleButtonLoading(btn, false);
       }
-      document.getElementById('btnInit').onclick = (e)=>doInit(e.target);
-      document.getElementById('btnSync').onclick = (e)=>doSimple(e.target,'/sync/api/sync-now','已执行同步');
-      document.getElementById('btnPull').onclick = (e)=>doSimple(e.target,'/sync/api/pull','已拉取');
-      document.getElementById('btnPush').onclick = (e)=>doSimple(e.target,'/sync/api/push','已推送');
-      document.getElementById('btnRelink').onclick = (e)=>doSimple(e.target,'/sync/api/relink','已重新链接');
-      document.getElementById('btnTrack').onclick = (e)=>doSimple(e.target,'/sync/api/track-empty','已执行空目录跟踪');
-      document.getElementById('btnRefresh').onclick = ()=>loadStatus();
-      document.getElementById('btnSaveTargets').onclick = (e)=>saveTargets(e.target);
-      document.getElementById('btnSaveExcludes').onclick = (e)=>saveExcludes(e.target);
-      loadStatus();
-    </script>
-  </body>
-  </html>
+    }
+
+    async function saveTargets(btn) {
+      toggleButtonLoading(btn, true, '保存中...');
+      try {
+        const lines = document.getElementById('txtTargets').value.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+        const j = await post('/sync/api/targets', { targets: lines });
+        if (j.ok) {
+          showToast('目标已保存');
+        } else {
+          showToast('失败: ' + (j.error || '未知错误'), 'error');
+        }
+        await loadStatus();
+      } catch (e) {
+        showToast('请求失败: ' + e, 'error');
+      } finally {
+        toggleButtonLoading(btn, false);
+      }
+    }
+
+    async function saveExcludes(btn) {
+      toggleButtonLoading(btn, true, '保存中...');
+      try {
+        const lines = document.getElementById('txtExcludes').value.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+        const j = await post('/sync/api/excludes', { excludes: lines });
+        if (j.ok) {
+          showToast('黑名单已保存');
+        } else {
+          showToast('失败: ' + (j.error || '未知错误'), 'error');
+        }
+        await loadStatus();
+      } catch (e) {
+        showToast('请求失败: ' + e, 'error');
+      } finally {
+        toggleButtonLoading(btn, false);
+      }
+    }
+
+    // --- 事件绑定 ---
+    document.getElementById('btnInit').onclick = (e) => doInit(e.currentTarget);
+    document.getElementById('btnSync').onclick = (e) => doSimple(e.currentTarget, '/sync/api/sync-now', '已执行同步', '同步中...');
+    document.getElementById('btnPull').onclick = (e) => doSimple(e.currentTarget, '/sync/api/pull', '已拉取', '拉取中...');
+    document.getElementById('btnPush').onclick = (e) => doSimple(e.currentTarget, '/sync/api/push', '已推送', '推送中...');
+    document.getElementById('btnRelink').onclick = (e) => doSimple(e.currentTarget, '/sync/api/relink', '已重新链接');
+    document.getElementById('btnTrack').onclick = (e) => doSimple(e.currentTarget, '/sync/api/track-empty', '已执行空目录跟踪');
+    
+    document.getElementById('btnRefresh').onclick = async (e) => {
+      const btn = e.currentTarget;
+      const icon = btn.querySelector('svg');
+      
+      btn.disabled = true;
+      if (icon) icon.classList.add('animate-spin');
+      
+      await loadStatus();
+      
+      // 延迟一点时间，让动画更明显
+      setTimeout(() => {
+        btn.disabled = false;
+        if (icon) icon.classList.remove('animate-spin');
+        showToast('状态已刷新', 'success');
+      }, 500);
+    };
+    
+    document.getElementById('btnSaveTargets').onclick = (e) => saveTargets(e.currentTarget);
+    document.getElementById('btnSaveExcludes').onclick = (e) => saveExcludes(e.currentTarget);
+
+    // 初始加载
+    loadStatus();
+  </script>
+</body>
+</html>
